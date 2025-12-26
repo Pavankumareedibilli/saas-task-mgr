@@ -10,8 +10,13 @@ class User(AbstractUser):
     phone = models.CharField(max_length=15, unique=True, null=True, blank=True)
     profile_image = models.ImageField(upload_to=profile_upload_path, null=True, blank=True)
 
-   
+    email = models.EmailField(unique=True)
     bio = models.TextField(null=True, blank=True)
+    def save(self, *args, **kwargs):
+        # normalize email to lowercase before saving
+        if self.email:
+            self.email = self.email.lower()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.username or self.email or f"user-{self.id}"
