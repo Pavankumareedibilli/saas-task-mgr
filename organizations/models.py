@@ -1,5 +1,8 @@
 from django.db import models
 from django.conf import settings
+import uuid
+from django.utils import timezone
+from datetime import timedelta
 User = settings.AUTH_USER_MODEL
 
 class Organization(models.Model):
@@ -49,3 +52,35 @@ class OrganizationMembership(models.Model):
 
     def __str__(self):
         return f"{self.user} → {self.organization} ({self.role})"
+    
+class OrganizationInvitation(models.Model):
+    """
+    Invitation sent to a user's email to join an organization.
+    """
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="invitations"
+    )
+    email = models.EmailField()
+    role = models.CharField(
+        max_length=10,
+        choices=OrganizationMembership.ROLE_CHOICES,
+        default=OrganizationMembership.MEMBER,
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    invited_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="sent_invitations"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_accepted = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("organization", "email")
+        indexes = [
+            models.Index(fields=["token"]),
+        ]
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(days=2)
+
+    def __str__(self):
+        return f"Invite({self.email} → {self.organization})"
