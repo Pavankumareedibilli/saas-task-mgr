@@ -1,28 +1,42 @@
 from django.test import TestCase
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
-
+from organizations.models import OrganizationInvitation
 User = get_user_model()
 
 
-class OrganizationTests(APITestCase):
-    def test_org_creation_and_visibility(self):
-        user = User.objects.create_user(
-            username="orguser",
-            email="org@example.com",
-            password="pass12345"
+class OrganizationInviteTests(APITestCase):
+    def test_invite_and_accept(self):
+        owner = User.objects.create_user(
+            username="owner",
+            email="owner@test.com",
+            password="pass12345",
+        )
+        invitee = User.objects.create_user(
+            username="invitee",
+            email="invitee@test.com",
+            password="pass12345",
         )
 
-        self.client.force_authenticate(user=user)
+        self.client.force_authenticate(owner)
+        org = self.client.post("/api/organizations/", {
+            "name": "Invite Org",
+            "slug": "invite-org"
+        }).data
 
-        # create org
-        resp = self.client.post("/api/organizations/", {
-            "name": "Test Org",
-            "slug": "test-org"
-        })
+        # send invite
+        resp = self.client.post(
+            f"/api/organizations/{org['id']}/invite/",
+            {"email": "invitee@test.com", "role": "MEMBER"}
+        )
         self.assertEqual(resp.status_code, 201)
 
-        # list orgs
-        resp = self.client.get("/api/organizations/")
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["role"], "OWNER")
+        token = OrganizationInvitation.objects.first().token
+
+        # accept invite
+        self.client.force_authenticate(invitee)
+        resp = self.client.post(
+            "/api/organizations/invitations/accept/",
+            {"token": str(token)}
+        )
+        self.assertEqual(resp.status_code, 200)

@@ -18,7 +18,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 class OrganizationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
-        fields = ("name", "slug")
+        fields = ("id","name", "slug")
 
     def create(self, validated_data):
         user = self.context["request"].user
