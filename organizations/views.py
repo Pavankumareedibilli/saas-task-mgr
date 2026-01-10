@@ -14,6 +14,10 @@ from .invitation_serializers import (
     OrganizationInviteSerializer,
     OrganizationInvitationAcceptSerializer,
 )
+from .member_serializers import (
+    OrganizationMemberSerializer,
+    OrganizationMemberRoleUpdateSerializer,
+)
 
 
 
@@ -116,3 +120,117 @@ class OrganizationAcceptInviteAPIView(APIView):
         invite.save()
 
         return Response({"detail": "Invitation accepted."})
+    
+class OrganizationMembersAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, org_id):
+        try:
+            organization = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({"detail": "Organization not found."}, status=404)
+
+        # Any active member can list members
+        require_org_role(
+            request.user,
+            organization,
+            [
+                OrganizationMembership.OWNER,
+                OrganizationMembership.ADMIN,
+                OrganizationMembership.MEMBER,
+            ],
+        )
+
+        members = organization.memberships.select_related("user").filter(is_active=True)
+        serializer = OrganizationMemberSerializer(members, many=True)
+        return Response(serializer.data)
+
+class OrganizationMemberRoleUpdateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, org_id, member_id):
+        try:
+            organization = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({"detail": "Organization not found."}, status=404)
+
+        # Only OWNER can change roles
+        require_org_role(
+            request.user,
+            organization,
+            [OrganizationMembership.OWNER],
+        )
+
+        try:
+            membership = OrganizationMembership.objects.get(
+                id=member_id,
+                organization=organization,
+                is_active=True,
+            )
+        except OrganizationMembership.DoesNotExist:
+            return Response({"detail": "Member not found."}, status=404)
+
+        serializer = OrganizationMemberRoleUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Prevent owner demoting themselves (lockout protection)
+        if (
+            membership.user == request.user
+            and membership.role == OrganizationMembership.OWNER
+            and serializer.validated_data["role"] != OrganizationMembership.OWNER
+        ):
+            return Response(
+                {"detail": "Owner cannot demote themselves."},
+                status=400,
+            )
+
+        membership.role = serializer.validated_data["role"]
+        membership.save()
+
+        return Response({"detail": "Role updated."})
+
+class OrganizationMemberRemoveAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, org_id, member_id):
+        try:
+            organization = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({"detail": "Organization not found."}, status=404)
+
+        requester_membership = require_org_role(
+            request.user,
+            organization,
+            [OrganizationMembership.OWNER, OrganizationMembership.ADMIN],
+        )
+
+        try:
+            membership = OrganizationMembership.objects.get(
+                id=member_id,
+                organization=organization,
+                is_active=True,
+            )
+        except OrganizationMembership.DoesNotExist:
+            return Response({"detail": "Member not found."}, status=404)
+
+        # Admin cannot remove OWNER
+        if (
+            requester_membership.role == OrganizationMembership.ADMIN
+            and membership.role == OrganizationMembership.OWNER
+        ):
+            return Response(
+                {"detail": "Admin cannot remove owner."},
+                status=403,
+            )
+
+        # Prevent owner removing themselves
+        if membership.user == request.user and membership.role == OrganizationMembership.OWNER:
+            return Response(
+                {"detail": "Owner cannot remove themselves."},
+                status=400,
+            )
+
+        membership.is_active = False
+        membership.save()
+
+        return Response({"detail": "Member removed."})
