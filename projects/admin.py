@@ -3,4 +3,5 @@ from .models import Board
 
 @admin.register(Board)
 class BoardAdmin(admin.ModelAdmin):
-    list_display = ("title", "org", "created_by", "created_at")
+    #list_display = ("title", "org", "created_by", "created_at")
+    list_display = ("name", "organization", "created_by", "created_at")
