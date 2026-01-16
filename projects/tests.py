@@ -4,7 +4,7 @@ from django.test import TestCase
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 from organizations.models import Organization
-
+from projects.models import Card,List,Board
 User = get_user_model()
 
 
@@ -45,3 +45,48 @@ class BoardListCardTests(APITestCase):
         })
 
         self.assertEqual(card.status_code, 201)
+
+
+class ReorderMoveTests(APITestCase):
+    def test_card_move_between_lists(self):
+        user = User.objects.create_user(
+            username="moveuser",
+            email="move@test.com",
+            password="pass12345",
+        )
+        self.client.force_authenticate(user)
+
+        from organizations.models import OrganizationMembership, Organization
+        org = Organization.objects.create(
+            name="Move Org",
+            slug="move-org",
+            created_by=user,
+        )
+        OrganizationMembership.objects.create(
+            user=user,
+            organization=org,
+            role="OWNER",
+        )
+
+        board = Board.objects.create(
+            name="Board",
+            organization=org,
+            created_by=user,
+        )
+
+        l1 = List.objects.create(board=board, title="L1", position=1)
+        l2 = List.objects.create(board=board, title="L2", position=2)
+
+        card = Card.objects.create(
+            list=l1,
+            title="Task",
+            position=1,
+            created_by=user,
+        )
+
+        resp = self.client.patch(
+            f"/api/cards/{card.id}/move/",
+            {"target_list_id": l2.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
