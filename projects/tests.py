@@ -90,3 +90,41 @@ class ReorderMoveTests(APITestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, 200)
+
+
+class BoardDetailTests(APITestCase):
+    def test_board_detail_nested(self):
+        user = User.objects.create_user(
+            username="detailuser",
+            email="detail@test.com",
+            password="pass12345",
+        )
+        self.client.force_authenticate(user)
+
+        from organizations.models import Organization, OrganizationMembership
+        org = Organization.objects.create(
+            name="Detail Org",
+            slug="detail-org",
+            created_by=user,
+        )
+        OrganizationMembership.objects.create(
+            user=user,
+            organization=org,
+            role="OWNER",
+        )
+
+        board = Board.objects.create(
+            name="Detail Board",
+            organization=org,
+            created_by=user,
+        )
+
+        lst = List.objects.create(board=board, title="Todo", position=1)
+        Card.objects.create(list=lst, title="Task A", position=1)
+        Card.objects.create(list=lst, title="Task B", position=2)
+
+        resp = self.client.get(f"/api/boards/{board.id}/detail/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data["lists"]), 1)
+        self.assertEqual(len(resp.data["lists"][0]["cards"]), 2)
+

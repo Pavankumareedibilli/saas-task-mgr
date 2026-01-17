@@ -6,6 +6,8 @@ from .views import (
     CardReorderAPIView,
     CardMoveAPIView,
 )
+from .views import BoardDetailAPIView
+
 
 router = DefaultRouter()
 router.register(r"boards", BoardViewSet, basename="board")
@@ -19,5 +21,6 @@ urlpatterns += [
     path("lists/<int:list_id>/reorder/", ListReorderAPIView.as_view()),
     path("cards/<int:card_id>/reorder/", CardReorderAPIView.as_view()),
     path("cards/<int:card_id>/move/", CardMoveAPIView.as_view()),
+     path("boards/<int:board_id>/detail/", BoardDetailAPIView.as_view()),
 ]
 

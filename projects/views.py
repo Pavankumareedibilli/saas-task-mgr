@@ -1,7 +1,4 @@
 from django.shortcuts import render
-
-# Create your views here.
-# projects/views.py
 from rest_framework import viewsets, permissions
 from organizations.models import OrganizationMembership, Organization
 from organizations.permissions import require_org_role
@@ -15,6 +12,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
 from .utils import calculate_position
+from django.db.models import Prefetch
+from .serializers import BoardDetailSerializer
+
 
 
 class BoardViewSet(viewsets.ModelViewSet):
@@ -246,3 +246,36 @@ class CardMoveAPIView(APIView):
         card.save()
 
         return Response({"detail": "Card moved."})
+    
+
+class BoardDetailAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, board_id):
+        try:
+            board = (
+                Board.objects
+                .select_related("organization")
+                .prefetch_related(
+                    Prefetch(
+                        "lists",
+                        queryset=List.objects.order_by("position").prefetch_related(
+                            Prefetch(
+                                "cards",
+                                queryset=Card.objects.order_by("position"),
+                            )
+                        ),
+                    )
+                )
+                .get(
+                    id=board_id,
+                    organization__memberships__user=request.user,
+                    organization__memberships__is_active=True,
+                )
+            )
+        except Board.DoesNotExist:
+            return Response({"detail": "Board not found."}, status=404)
+
+        serializer = BoardDetailSerializer(board)
+        return Response(serializer.data)
+

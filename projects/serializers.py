@@ -27,3 +27,27 @@ class CardSerializer(serializers.ModelSerializer):
             "position",
             "created_at",
         )
+
+
+
+
+class CardNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Card
+        fields = ("id", "title", "description", "position")
+
+
+class ListNestedSerializer(serializers.ModelSerializer):
+    cards = CardNestedSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = List
+        fields = ("id", "title", "position", "cards")
+
+
+class BoardDetailSerializer(serializers.ModelSerializer):
+    lists = ListNestedSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Board
+        fields = ("id", "name", "lists", "created_at")
