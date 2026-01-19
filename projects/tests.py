@@ -128,3 +128,42 @@ class BoardDetailTests(APITestCase):
         self.assertEqual(len(resp.data["lists"]), 1)
         self.assertEqual(len(resp.data["lists"][0]["cards"]), 2)
 
+class ArchiveTests(APITestCase):
+    def test_archive_card(self):
+        user = User.objects.create_user(
+            username="archuser",
+            email="arch@test.com",
+            password="pass12345",
+        )
+        self.client.force_authenticate(user)
+
+        from organizations.models import Organization, OrganizationMembership
+        org = Organization.objects.create(
+            name="Arch Org",
+            slug="arch-org",
+            created_by=user,
+        )
+        OrganizationMembership.objects.create(
+            user=user,
+            organization=org,
+            role="OWNER",
+        )
+
+        board = Board.objects.create(
+            name="Board",
+            organization=org,
+            created_by=user,
+        )
+        lst = List.objects.create(board=board, title="Todo", position=1)
+        card = Card.objects.create(
+            list=lst,
+            title="Task",
+            position=1,
+            created_by=user,
+        )
+
+        resp = self.client.patch(f"/api/cards/{card.id}/archive/")
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.client.get(f"/api/boards/{board.id}/detail/")
+        self.assertEqual(len(resp.data["lists"][0]["cards"]), 0)

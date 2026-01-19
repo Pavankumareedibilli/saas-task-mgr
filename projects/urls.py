@@ -5,6 +5,14 @@ from .views import (
     ListReorderAPIView,
     CardReorderAPIView,
     CardMoveAPIView,
+    BoardArchiveAPIView,
+    BoardRestoreAPIView,
+    ListArchiveAPIView,
+    ListRestoreAPIView,
+    CardArchiveAPIView,
+    CardRestoreAPIView
+
+
 )
 from .views import BoardDetailAPIView
 
@@ -21,6 +29,14 @@ urlpatterns += [
     path("lists/<int:list_id>/reorder/", ListReorderAPIView.as_view()),
     path("cards/<int:card_id>/reorder/", CardReorderAPIView.as_view()),
     path("cards/<int:card_id>/move/", CardMoveAPIView.as_view()),
-     path("boards/<int:board_id>/detail/", BoardDetailAPIView.as_view()),
+    path("boards/<int:board_id>/detail/", BoardDetailAPIView.as_view()),
+    path("boards/<int:board_id>/archive/", BoardArchiveAPIView.as_view()),
+    path("boards/<int:board_id>/restore/", BoardRestoreAPIView.as_view()),
+
+    path("lists/<int:list_id>/archive/", ListArchiveAPIView.as_view()),
+    path("lists/<int:list_id>/restore/", ListRestoreAPIView.as_view()),
+
+    path("cards/<int:card_id>/archive/", CardArchiveAPIView.as_view()),
+    path("cards/<int:card_id>/restore/", CardRestoreAPIView.as_view()),
 ]
 

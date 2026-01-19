@@ -23,6 +23,7 @@ class BoardViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Board.objects.filter(
+            is_archived=False,
             organization__memberships__user=self.request.user,
             organization__memberships__is_active=True,
         ).distinct()
@@ -58,6 +59,8 @@ class ListViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return List.objects.filter(
+            is_archived=False,
+            board__is_archived=False,
             board__organization__memberships__user=self.request.user,
             board__organization__memberships__is_active=True,
         ).distinct()
@@ -91,6 +94,9 @@ class CardViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Card.objects.filter(
+            is_archived=False,
+            list__is_archived=False,
+            list__board__is_archived=False,
             list__board__organization__memberships__user=self.request.user,
             list__board__organization__memberships__is_active=True,
         ).distinct()
@@ -259,14 +265,17 @@ class BoardDetailAPIView(APIView):
                 .prefetch_related(
                     Prefetch(
                         "lists",
-                        queryset=List.objects.order_by("position").prefetch_related(
+                        queryset=List.objects.filter(is_archived=False)
+                        .order_by("position")
+                        .prefetch_related(
                             Prefetch(
                                 "cards",
-                                queryset=Card.objects.order_by("position"),
+                                queryset=Card.objects.filter(is_archived=False).order_by("position"),
                             )
                         ),
                     )
                 )
+
                 .get(
                     id=board_id,
                     organization__memberships__user=request.user,
@@ -279,3 +288,125 @@ class BoardDetailAPIView(APIView):
         serializer = BoardDetailSerializer(board)
         return Response(serializer.data)
 
+class BoardArchiveAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, board_id):
+        try:
+            board = Board.objects.get(id=board_id)
+        except Board.DoesNotExist:
+            return Response({"detail": "Board not found."}, status=404)
+
+        require_org_role(
+            request.user,
+            board.organization,
+            [
+                OrganizationMembership.OWNER,
+                OrganizationMembership.ADMIN,
+            ],
+        )
+
+        board.is_archived = True
+        board.save()
+
+        return Response({"detail": "Board archived."})
+
+class BoardRestoreAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, board_id):
+        try:
+            board = Board.objects.get(id=board_id, is_archived=True)
+        except Board.DoesNotExist:
+            return Response({"detail": "Archived board not found."}, status=404)
+
+        require_org_role(
+            request.user,
+            board.organization,
+            [
+                OrganizationMembership.OWNER,
+                OrganizationMembership.ADMIN,
+            ],
+        )
+
+        board.is_archived = False
+        board.save()
+
+        return Response({"detail": "Board restored."})
+
+class ListArchiveAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, list_id):
+        list_obj = List.objects.get(id=list_id)
+
+        require_org_role(
+            request.user,
+            list_obj.board.organization,
+            [
+                OrganizationMembership.OWNER,
+                OrganizationMembership.ADMIN,
+            ],
+        )
+
+        list_obj.is_archived = True
+        list_obj.save()
+        return Response({"detail": "List archived."})
+
+class ListRestoreAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, list_id):
+        list_obj = List.objects.get(id=list_id, is_archived=True)
+
+        require_org_role(
+            request.user,
+            list_obj.board.organization,
+            [
+                OrganizationMembership.OWNER,
+                OrganizationMembership.ADMIN,
+            ],
+        )
+
+        list_obj.is_archived = False
+        list_obj.save()
+        return Response({"detail": "List restored."})
+class CardArchiveAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, card_id):
+        card = Card.objects.get(id=card_id)
+
+        require_org_role(
+            request.user,
+            card.list.board.organization,
+            [
+                OrganizationMembership.OWNER,
+                OrganizationMembership.ADMIN,
+                OrganizationMembership.MEMBER,
+            ],
+        )
+
+        card.is_archived = True
+        card.save()
+        return Response({"detail": "Card archived."})
+
+class CardRestoreAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, card_id):
+        card = Card.objects.get(id=card_id, is_archived=True)
+
+        require_org_role(
+            request.user,
+            card.list.board.organization,
+            [
+                OrganizationMembership.OWNER,
+                OrganizationMembership.ADMIN,
+                OrganizationMembership.MEMBER,
+            ],
+        )
+
+        card.is_archived = False
+        card.save()
+        return Response({"detail": "Card restored."})
