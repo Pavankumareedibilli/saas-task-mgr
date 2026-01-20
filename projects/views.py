@@ -14,6 +14,8 @@ from django.db import transaction
 from .utils import calculate_position
 from django.db.models import Prefetch
 from .serializers import BoardDetailSerializer
+from .activity_logger import log_activity
+
 
 
 
@@ -52,6 +54,19 @@ class BoardViewSet(viewsets.ModelViewSet):
             organization=organization,
             created_by=self.request.user,
         )
+        board = serializer.save(
+            organization=organization,
+            created_by=self.request.user,
+        )
+        log_activity(
+        organization=organization,
+        actor=self.request.user,
+        action="BOARD_CREATED",
+        metadata={
+            "board_id": board.id,
+            "board_name": board.name,
+        },
+    )
 
 class ListViewSet(viewsets.ModelViewSet):
     serializer_class = ListSerializer
@@ -126,6 +141,21 @@ class CardViewSet(viewsets.ModelViewSet):
             position=position,
             created_by=self.request.user,
         )
+        card = serializer.save(
+            list=list_obj,
+            position=position,
+            created_by=self.request.user,
+        )
+        log_activity(
+            organization=list_obj.board.organization,
+            actor=self.request.user,
+            action="CARD_CREATED",
+            metadata={
+                "card_id": card.id,
+                "list_id": list_obj.id,
+                "title": card.title,
+            },
+    )
 
 class ListReorderAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -224,7 +254,7 @@ class CardMoveAPIView(APIView):
         # Ensure same organization (no cross-tenant move)
         if card.list.board.organization_id != target_list.board.organization_id:
             return Response({"detail": "Cross-organization move not allowed."}, status=403)
-
+        
         require_org_role(
             request.user,
             card.list.board.organization,
@@ -246,12 +276,23 @@ class CardMoveAPIView(APIView):
             Card.objects.get(id=after_id).position
             if after_id else None
         )
-
+        old_list_id = card.list_id
         card.list = target_list
         card.position = calculate_position(before, after)
         card.save()
-
+        log_activity(
+            organization=target_list.board.organization,
+            actor=request.user,
+            action="CARD_MOVED",
+            metadata={
+                "card_id": card.id,
+                "from_list": old_list_id,
+                "to_list": target_list.id,
+            },
+        )
         return Response({"detail": "Card moved."})
+    
+
     
 
 class BoardDetailAPIView(APIView):
@@ -389,6 +430,15 @@ class CardArchiveAPIView(APIView):
 
         card.is_archived = True
         card.save()
+        log_activity(
+            organization=card.list.board.organization,
+            actor=request.user,
+            action="CARD_ARCHIVED",
+            metadata={
+                "card_id": card.id,
+                "title": card.title,
+            },
+        )
         return Response({"detail": "Card archived."})
 
 class CardRestoreAPIView(APIView):

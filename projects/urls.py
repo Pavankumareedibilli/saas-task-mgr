@@ -1,6 +1,7 @@
 # projects/urls.py
 from rest_framework.routers import DefaultRouter,path
 from .views import BoardViewSet, ListViewSet, CardViewSet
+from .activity_views import ActivityLogListAPIView
 from .views import (
     ListReorderAPIView,
     CardReorderAPIView,
@@ -10,9 +11,7 @@ from .views import (
     ListArchiveAPIView,
     ListRestoreAPIView,
     CardArchiveAPIView,
-    CardRestoreAPIView
-
-
+    CardRestoreAPIView,
 )
 from .views import BoardDetailAPIView
 
@@ -38,5 +37,6 @@ urlpatterns += [
 
     path("cards/<int:card_id>/archive/", CardArchiveAPIView.as_view()),
     path("cards/<int:card_id>/restore/", CardRestoreAPIView.as_view()),
+    path("activity-logs/", ActivityLogListAPIView.as_view()),
 ]
 

@@ -17,6 +17,7 @@
 from django.db import models
 from django.conf import settings
 from organizations.models import Organization
+from .activity_models import ActivityLog
 
 User = settings.AUTH_USER_MODEL
 
