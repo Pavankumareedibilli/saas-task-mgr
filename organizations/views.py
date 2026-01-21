@@ -18,7 +18,7 @@ from .member_serializers import (
     OrganizationMemberSerializer,
     OrganizationMemberRoleUpdateSerializer,
 )
-
+from projects.tasks import send_email_task
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -82,14 +82,12 @@ class OrganizationInviteAPIView(APIView):
             return Response({"detail": "Invitation already sent."}, status=400)
 
         invite_link = f"http://localhost:3000/accept-invite?token={invite.token}"
-
-        send_mail(
+        
+        send_email_task.delay(
             subject="Organization Invitation",
             message=f"You were invited to join {organization.name}.\n{invite_link}",
-            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
         )
-
         return Response({"detail": "Invitation sent."}, status=201)
 
 

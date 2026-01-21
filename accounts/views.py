@@ -15,6 +15,7 @@ from .password_reset_serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer
 )
+from projects.tasks import send_email_task
 
 User = get_user_model()
 
@@ -82,13 +83,11 @@ class PasswordResetRequestAPIView(APIView):
 
         reset_link = f"http://localhost:3000/reset-password?token={token_obj.token}"
 
-        send_mail(
+        send_email_task.delay(
             subject="Password Reset",
             message=f"Use this link to reset your password:\n{reset_link}",
-            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
         )
-
         return Response({"detail": "If the email exists, a reset link has been sent."})
     
 class PasswordResetConfirmAPIView(APIView):

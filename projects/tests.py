@@ -91,3 +91,15 @@ class CardSearchTests(APITestCase):
         resp = self.client.get("/api/card-search/?title=auth")
         self.assertEqual(len(resp.data["results"]), 1)
 
+from unittest.mock import patch
+from projects.tasks import send_email_task
+
+class AsyncEmailTests(APITestCase):
+    @patch("projects.tasks.send_mail")
+    def test_email_task_called(self, mock_send):
+        send_email_task(
+            subject="Test",
+            message="Hello",
+            recipient_list=["a@test.com"],
+        )
+        self.assertTrue(mock_send.called)
