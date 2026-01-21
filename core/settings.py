@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
 ]
 
+INSTALLED_APPS += ["django_filters"]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -57,7 +59,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'core.urls'
-
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "no-reply@saas-task-mgr.local"
@@ -86,6 +87,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticatedOrReadOnly"]
 }
 
+
+REST_FRAMEWORK["DEFAULT_FILTER_BACKENDS"] = [
+    "django_filters.rest_framework.DjangoFilterBackend",
+]
 REST_FRAMEWORK.update({
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",

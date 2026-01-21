@@ -44,3 +44,50 @@ class ActivityLogTests(APITestCase):
         })
 
         self.assertEqual(ActivityLog.objects.count(), 1)
+
+
+
+class CardSearchTests(APITestCase):
+    def test_search_cards(self):
+        user = User.objects.create_user(
+            username="searchuser",
+            email="search@test.com",
+            password="pass12345",
+        )
+        self.client.force_authenticate(user)
+
+        from organizations.models import Organization, OrganizationMembership
+        org = Organization.objects.create(
+            name="Search Org",
+            slug="search-org",
+            created_by=user,
+        )
+        OrganizationMembership.objects.create(
+            user=user,
+            organization=org,
+            role="OWNER",
+        )
+
+        board = Board.objects.create(
+            name="Search Board",
+            organization=org,
+            created_by=user,
+        )
+        lst = List.objects.create(board=board, title="Todo", position=1)
+
+        Card.objects.create(
+            list=lst,
+            title="Fix auth bug",
+            position=1,
+            created_by=user,
+        )
+        Card.objects.create(
+            list=lst,
+            title="Improve search",
+            position=2,
+            created_by=user,
+        )
+
+        resp = self.client.get("/api/card-search/?title=auth")
+        self.assertEqual(len(resp.data["results"]), 1)
+

@@ -12,6 +12,7 @@ from .views import (
     ListRestoreAPIView,
     CardArchiveAPIView,
     CardRestoreAPIView,
+    CardSearchAPIView
 )
 from .views import BoardDetailAPIView
 
@@ -20,6 +21,8 @@ router = DefaultRouter()
 router.register(r"boards", BoardViewSet, basename="board")
 router.register(r"lists", ListViewSet, basename="list")
 router.register(r"cards", CardViewSet, basename="card")
+router.register(r"card-search", CardSearchAPIView, basename="card-search")
+
 
 urlpatterns = router.urls
 
@@ -38,5 +41,6 @@ urlpatterns += [
     path("cards/<int:card_id>/archive/", CardArchiveAPIView.as_view()),
     path("cards/<int:card_id>/restore/", CardRestoreAPIView.as_view()),
     path("activity-logs/", ActivityLogListAPIView.as_view()),
+    
 ]
 

@@ -70,6 +70,10 @@ class Card(models.Model):
 
     class Meta:
         ordering = ["position"]
+        indexes = [
+            models.Index(fields=["title"]),
+            models.Index(fields=["created_at"]),
+        ]
 
     def __str__(self):
         return self.title

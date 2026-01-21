@@ -15,6 +15,10 @@ from .utils import calculate_position
 from django.db.models import Prefetch
 from .serializers import BoardDetailSerializer
 from .activity_logger import log_activity
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from .filters import CardFilter
+from .pagination import CardCursorPagination
 
 
 
@@ -460,3 +464,20 @@ class CardRestoreAPIView(APIView):
         card.is_archived = False
         card.save()
         return Response({"detail": "Card restored."})
+    
+    
+class CardSearchAPIView(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CardSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CardCursorPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = CardFilter
+
+    def get_queryset(self):
+        return Card.objects.filter(
+            list__board__organization__memberships__user=self.request.user,
+            list__board__organization__memberships__is_active=True,
+        ).select_related(
+            "list",
+            "list__board",
+        )
