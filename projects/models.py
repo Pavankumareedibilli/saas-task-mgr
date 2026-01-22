@@ -18,6 +18,7 @@ from django.db import models
 from django.conf import settings
 from organizations.models import Organization
 from .activity_models import ActivityLog
+from .notification_models import Notification
 
 User = settings.AUTH_USER_MODEL
 
@@ -67,6 +68,13 @@ class Card(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_archived = models.BooleanField(default=False)
+    assignee = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_cards",
+    )
 
     class Meta:
         ordering = ["position"]

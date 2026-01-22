@@ -19,6 +19,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from .filters import CardFilter
 from .pagination import CardCursorPagination
+from .notification_logger import notify
+
 
 
 
@@ -284,6 +286,18 @@ class CardMoveAPIView(APIView):
         card.list = target_list
         card.position = calculate_position(before, after)
         card.save()
+        if card.created_by and card.created_by != request.user:
+            notify(
+                recipient=card.created_by,
+                organization=target_list.board.organization,
+                type="CARD_MOVED",
+                metadata={
+                    "card_id": card.id,
+                    "from_list": old_list_id,
+                    "to_list": target_list.id,
+                },
+            )
+
         log_activity(
             organization=target_list.board.organization,
             actor=request.user,
@@ -481,3 +495,51 @@ class CardSearchAPIView(viewsets.ReadOnlyModelViewSet):
             "list",
             "list__board",
         )
+    
+    
+class CardAssignAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, card_id):
+        try:
+            card = Card.objects.get(id=card_id)
+        except Card.DoesNotExist:
+            return Response({"detail": "Card not found."}, status=404)
+
+        require_org_role(
+            request.user,
+            card.list.board.organization,
+            [
+                OrganizationMembership.OWNER,
+                OrganizationMembership.ADMIN,
+                OrganizationMembership.MEMBER,
+            ],
+        )
+
+        assignee_id = request.data.get("assignee_id")
+        if not assignee_id:
+            return Response({"detail": "assignee_id required"}, status=400)
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        try:
+            assignee = User.objects.get(id=assignee_id)
+        except User.DoesNotExist:
+            return Response({"detail": "Invalid user"}, status=400)
+
+        card.assignee = assignee
+        card.save()
+
+        if assignee != request.user:
+            notify(
+                recipient=assignee,
+                organization=card.list.board.organization,
+                type="CARD_ASSIGNED",
+                metadata={
+                    "card_id": card.id,
+                    "title": card.title,
+                },
+            )
+
+        return Response({"detail": "Card assigned."})

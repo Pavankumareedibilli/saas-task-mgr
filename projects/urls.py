@@ -12,10 +12,14 @@ from .views import (
     ListRestoreAPIView,
     CardArchiveAPIView,
     CardRestoreAPIView,
-    CardSearchAPIView
+    CardSearchAPIView,
+    CardAssignAPIView,
 )
 from .views import BoardDetailAPIView
-
+from .notification_views import (
+    NotificationListAPIView,
+    NotificationMarkReadAPIView,
+)
 
 router = DefaultRouter()
 router.register(r"boards", BoardViewSet, basename="board")
@@ -41,6 +45,9 @@ urlpatterns += [
     path("cards/<int:card_id>/archive/", CardArchiveAPIView.as_view()),
     path("cards/<int:card_id>/restore/", CardRestoreAPIView.as_view()),
     path("activity-logs/", ActivityLogListAPIView.as_view()),
+    path("notifications/", NotificationListAPIView.as_view()),
+    path("notifications/<int:pk>/read/", NotificationMarkReadAPIView.as_view()),
+    path("cards/<int:card_id>/assign/", CardAssignAPIView.as_view()),
     
 ]
 

@@ -19,7 +19,8 @@ from .member_serializers import (
     OrganizationMemberRoleUpdateSerializer,
 )
 from projects.tasks import send_email_task
-
+from projects.notification_logger import notify
+from organizations.models import OrganizationMembership
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -82,7 +83,7 @@ class OrganizationInviteAPIView(APIView):
             return Response({"detail": "Invitation already sent."}, status=400)
 
         invite_link = f"http://localhost:3000/accept-invite?token={invite.token}"
-        
+
         send_email_task.delay(
             subject="Organization Invitation",
             message=f"You were invited to join {organization.name}.\n{invite_link}",
@@ -113,6 +114,21 @@ class OrganizationAcceptInviteAPIView(APIView):
             organization=invite.organization,
             role=invite.role,
         )
+        owners = OrganizationMembership.objects.filter(
+            organization=invite.organization,
+            role=OrganizationMembership.OWNER,
+            is_active=True,
+        )        
+        for owner in owners:
+            notify(
+                recipient=owner.user,
+                organization=invite.organization,
+                type="INVITE_ACCEPTED",
+                metadata={
+                    "email": invite.email,
+                    "role": invite.role,
+                },
+            )
 
         invite.is_accepted = True
         invite.save()
