@@ -143,3 +143,31 @@ class NotificationTests(APITestCase):
         )
 
         self.assertEqual(Notification.objects.count(), 1)
+from django.core.cache import cache
+
+class CacheTests(APITestCase):
+    def test_board_detail_cached(self):
+        cache.clear()
+        user = User.objects.create_user(
+            username="cacheuser",
+            email="cache@test.com",
+            password="pass12345",
+        )
+        self.client.force_authenticate(user)
+
+        from organizations.models import Organization, OrganizationMembership
+        org = Organization.objects.create(
+            name="Cache Org",
+            slug="cache-org",
+            created_by=user,
+        )
+        OrganizationMembership.objects.create(
+            user=user, organization=org, role="OWNER"
+        )
+
+        board = Board.objects.create(
+            name="Board", organization=org, created_by=user
+        )
+
+        self.client.get(f"/api/boards/{board.id}/detail/")
+        self.assertTrue(cache.keys("board_detail*"))

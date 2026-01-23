@@ -91,6 +91,18 @@ REST_FRAMEWORK = {
 REST_FRAMEWORK["DEFAULT_FILTER_BACKENDS"] = [
     "django_filters.rest_framework.DjangoFilterBackend",
 ]
+REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
+    "rest_framework.throttling.UserRateThrottle",
+    "rest_framework.throttling.AnonRateThrottle",
+]
+
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "user": "1000/day",
+    "anon": "100/day",
+}
+
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["auth"] = "10/min"
+
 REST_FRAMEWORK.update({
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -123,6 +135,16 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASS"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
+    }
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 

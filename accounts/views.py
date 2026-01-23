@@ -16,6 +16,7 @@ from .password_reset_serializers import (
     PasswordResetConfirmSerializer
 )
 from projects.tasks import send_email_task
+from rest_framework.throttling import ScopedRateThrottle
 
 User = get_user_model()
 
@@ -23,6 +24,8 @@ class RegisterAPIView(generics.CreateAPIView):
     """
     POST /api/accounts/register/   -> create user
     """
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
     serializer_class = RegisterSerializer
     permission_classes = (permissions.AllowAny,)
 

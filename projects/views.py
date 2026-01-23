@@ -20,6 +20,9 @@ from rest_framework import filters
 from .filters import CardFilter
 from .pagination import CardCursorPagination
 from .notification_logger import notify
+from django.core.cache import cache
+from .cache_utils import invalidate_board_cache
+
 
 
 
@@ -286,6 +289,7 @@ class CardMoveAPIView(APIView):
         card.list = target_list
         card.position = calculate_position(before, after)
         card.save()
+        invalidate_board_cache(target_list.board.id)
         if card.created_by and card.created_by != request.user:
             notify(
                 recipient=card.created_by,
@@ -318,6 +322,10 @@ class BoardDetailAPIView(APIView):
 
     def get(self, request, board_id):
         try:
+            cache_key = f"board_detail:{board_id}:{request.user.id}"
+            cached = cache.get(cache_key)
+            if cached:
+                return Response(cached)
             board = (
                 Board.objects
                 .select_related("organization")
@@ -343,7 +351,10 @@ class BoardDetailAPIView(APIView):
             )
         except Board.DoesNotExist:
             return Response({"detail": "Board not found."}, status=404)
-
+        serializer = BoardDetailSerializer(board)
+        data = serializer.data
+        cache.set(cache_key, data, timeout=60)
+        return Response(data)
         serializer = BoardDetailSerializer(board)
         return Response(serializer.data)
 

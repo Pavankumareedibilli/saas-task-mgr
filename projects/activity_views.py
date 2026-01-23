@@ -2,6 +2,9 @@
 from rest_framework import generics, permissions
 from .activity_models import ActivityLog
 from .activity_serializers import ActivityLogSerializer
+from django.core.cache import cache
+from rest_framework.response import Response
+
 
 
 class ActivityLogListAPIView(generics.ListAPIView):
@@ -13,8 +16,29 @@ class ActivityLogListAPIView(generics.ListAPIView):
         if not org_id:
             return ActivityLog.objects.none()
 
-        return ActivityLog.objects.filter(
-            organization_id=org_id,
-            organization__memberships__user=self.request.user,
-            organization__memberships__is_active=True,
-        )
+        cache_key = f"activity_logs:{org_id}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        qs = ActivityLog.objects.filter(
+                organization_id=org_id,
+                organization__memberships__user=self.request.user,
+                organization__memberships__is_active=True,
+            )
+        serializer = ActivityLogSerializer(qs, many=True)
+        data = serializer.data
+        
+
+        cache.set(cache_key, data, timeout=30)
+        return Response(data)
+
+        # org_id = self.request.query_params.get("organization_id")
+        # if not org_id:
+        #     return ActivityLog.objects.none()
+
+        # return ActivityLog.objects.filter(
+        #     organization_id=org_id,
+        #     organization__memberships__user=self.request.user,
+        #     organization__memberships__is_active=True,
+        # )
