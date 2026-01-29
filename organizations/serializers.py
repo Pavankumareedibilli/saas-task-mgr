@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Organization, OrganizationMembership
-
+from django.utils.text import slugify
+import uuid
 
 class OrganizationSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
@@ -16,6 +17,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
 
 class OrganizationCreateSerializer(serializers.ModelSerializer):
+    slug = serializers.CharField(required=False)
+
     class Meta:
         model = Organization
         fields = ("id","name", "slug")
@@ -23,12 +26,20 @@ class OrganizationCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = self.context["request"].user
 
+        base_slug = slugify(validated_data["name"])
+        slug = base_slug
+        if Organization.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
+
+        validated_data["slug"] = slug
+
+
         org = Organization.objects.create(
             created_by=user,
             **validated_data
         )
 
-        # creator becomes OWNER
+        # Here the one who creates the organization will become the default owner
         OrganizationMembership.objects.create(
             user=user,
             organization=org,
